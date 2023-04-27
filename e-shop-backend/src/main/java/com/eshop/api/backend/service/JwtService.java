@@ -1,23 +1,29 @@
 package com.eshop.api.backend.service;
 
+import com.eshop.api.backend.dao.entity.Role;
 import com.eshop.api.backend.dao.entity.User;
 import com.eshop.api.backend.dao.repository.UserRepository;
 import com.eshop.api.backend.models.JwtRequest;
 import com.eshop.api.backend.models.JwtResponse;
 import com.eshop.api.backend.utils.JwtUtil;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
+import java.util.Collection;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 public class JwtService implements UserDetailsService {
@@ -26,53 +32,18 @@ public class JwtService implements UserDetailsService {
     private UserRepository userRepository;
 
     @Autowired
-    private JwtUtil jwtUtil;
-
-    @Autowired
-    private AuthenticationManager authenticationManager;
-
-    public JwtResponse createJwtToken(JwtRequest jwtRequest) throws Exception {
-
-        String userName = jwtRequest.getUserName();
-        String userPassword = jwtRequest.getUserPassword();
-        authenticate(userName, userPassword);
-        final UserDetails userDetails = loadUserByUsername(userName);
-        String newGeneratedToken = jwtUtil.generateToken(userDetails);
-        User user = userRepository.findById(userName).get();
-        return new JwtResponse(user, newGeneratedToken);
+    public JwtService(UserRepository userRepository) {
+        this.userRepository = userRepository;
     }
 
     @Override
-    public UserDetails loadUserByUsername(String userName) throws UsernameNotFoundException {
-
-        User user = userRepository.findById(userName).get();
-
-        if (user != null) {
-            return new org.springframework.security.core.userdetails.User(user.getUserName(), user.getPassword(), getAuthorities(user));
-        } else {
-            throw new UsernameNotFoundException("User name is not valid!");
-        }
+    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
+        User user = userRepository.findById(username).orElseThrow(() -> new UsernameNotFoundException("Username not found"));
+        return new org.springframework.security.core.userdetails.User(user.getUserName(), user.getPassword(), mapRolesToAuthorities(user.getRoles()));
     }
 
-    private Set getAuthorities(User user) {
-        Set authorities = new HashSet();
-        user.getRoles().forEach(role -> {
-            authorities.add(new SimpleGrantedAuthority("ROLE_" + role.getRoleName()));
-        });
-
-        return authorities;
-    }
-
-    private void authenticate(String userName, String userPassword) throws Exception {
-
-        try {
-            authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(userName, userPassword));
-        } catch (DisabledException e) {
-            throw new Exception("User is disabled!");
-        } catch (BadCredentialsException e) {
-            throw new Exception("Bad credentials from user!");
-        }
-
+    private Collection<GrantedAuthority> mapRolesToAuthorities(Set<Role> roles) {
+        return roles.stream().map(role -> new SimpleGrantedAuthority(role.getRoleName())).collect(Collectors.toList());
     }
 
 }

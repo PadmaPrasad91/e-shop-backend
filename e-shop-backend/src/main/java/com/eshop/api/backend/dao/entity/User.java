@@ -2,15 +2,16 @@ package com.eshop.api.backend.dao.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.springframework.security.core.GrantedAuthority;
 
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
 import java.util.Set;
 
 @Entity
-@AllArgsConstructor
 @NoArgsConstructor
 @Data
-@Getter
-@Setter
 public class User {
 
     @Id
@@ -25,4 +26,5 @@ public class User {
     @ManyToMany(fetch = FetchType.EAGER, cascade = CascadeType.ALL)
     @JoinTable(name = "USER_ROLE", joinColumns = { @JoinColumn(name = "USER_ID") },inverseJoinColumns = { @JoinColumn(name = "ROLE_ID") })
     private Set<Role> roles;
+
 }
